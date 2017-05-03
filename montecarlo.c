@@ -3,6 +3,9 @@
 // Monte Carlo estimate of pi optimized to use fixed-point arithmetics
 // instead of FPU. By zouppen@gmail.com
 //
+// NB! I left error checks away for clarity. Never access files in
+// real life without checking return values!!
+//
 // Compile with `gcc --std=gnu99 -Wall -o montecarlo montecarlo.c`
 
 #include <stdio.h>
