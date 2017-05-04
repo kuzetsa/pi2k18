@@ -24,7 +24,8 @@ uint32_t read_point(FILE *f)
 }
 
 // Do Monte carlo sampling to a circle with radius of 2^31. When
-// squared is exactly 2^62 and fits inside 64 bit integer.
+// squared and summed we get number which is always less than 2^63
+// which fits inside a 64 bit unsigned integer.
 bool sample(FILE *f) {
 	uint64_t a = read_point(f);
 	uint64_t b = read_point(f);
@@ -36,17 +37,19 @@ int main(int argc, char** argv)
 	// Use Linux kernel random numbers
 	FILE* f = fopen("/dev/urandom", "rb");
 
-	// Sample and test how many times we hit the circle.
 	uint64_t i=0, n=0;
 	while (true) {
 		i++;
 
+		// Sample and test if we hit inside a circle.
 		if (sample(f)) {
 			n++;
 		}
 
-		// Print only periodically
+		// Print only periodically (once per 512 iterations)
 		if ((i & 0x1ff) == 0) {
+			// We have sampled quarter circle so we need
+			// to multiply by 4 to get the value of pi.
 			double pi = 4.0 * n / i;
 			printf("After %10lu iterations: %.10f\n", i, pi);
 		}
