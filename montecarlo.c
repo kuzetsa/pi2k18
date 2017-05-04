@@ -10,7 +10,6 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <stdbool.h>
 
 uint32_t read_point(FILE *f);
@@ -34,23 +33,22 @@ bool sample(FILE *f) {
 
 int main(int argc, char** argv)
 {
-	// Process command line
-	if (argc != 2) {
-		fprintf(stderr, "Usage: %s ITERATIONS\n", argv[0]);
-		return 1;
-	}
-	uint64_t m = strtoll(argv[1], NULL, 10);
-
 	// Use Linux kernel random numbers
 	FILE* f = fopen("/dev/urandom", "rb");
 
-	// Sample n times and test how many times we hit the circle.
-	uint64_t n = 0;
-	for (uint64_t i=0; i<m; i++) {
+	// Sample and test how many times we hit the circle.
+	uint64_t i=0, n=0;
+	while (true) {
+		i++;
+
 		if (sample(f)) {
 			n++;
 		}
+
+		// Print only periodically
+		if ((i & 0x1ff) == 0) {
+			double pi = 4.0 * n / i;
+			printf("After %10lu iterations: %.10f\n", i, pi);
+		}
 	}
-	double pi = 4.0 * n / m;
-	printf("%f\n", pi);
 }
