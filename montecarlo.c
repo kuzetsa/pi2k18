@@ -16,22 +16,20 @@
 uint32_t read_point(FILE *f);
 bool sample(FILE *f);
 
-// Returns a random integer between 0 and 2^31.5.
+// Returns a random integer between 0 and 2^31.
 uint32_t read_point(FILE *f)
 {
 	uint32_t val;
-	do {
-		fread(&val, 4, 1, f);
-	} while (val > 3037000499);
-	return val;
+ 	fread(&val, 4, 1, f);
+	return val & ~(1<<31);
 }
 
-// Do Monte carlo sampling to a circle with radius of 2^31.5. When
-// squared is exactly 2^63 and fits inside 64 bit integer.
+// Do Monte carlo sampling to a circle with radius of 2^31. When
+// squared is exactly 2^62 and fits inside 64 bit integer.
 bool sample(FILE *f) {
 	uint64_t a = read_point(f);
 	uint64_t b = read_point(f);
-	return (a*a + b*b) < ((uint64_t)1<<63);
+	return (a*a + b*b) < ((uint64_t)1<<62);
 }
 
 int main(int argc, char** argv)
@@ -56,5 +54,3 @@ int main(int argc, char** argv)
 	double pi = 4.0 * n / m;
 	printf("%f\n", pi);
 }
-
-	
