@@ -12,7 +12,7 @@ bool sample(FILE *f);
 
 uint64_t read_point(FILE *f) {
   uint64_t val;
-  fread(&val, 8, 1, f);
+  uint16_t trash = fread(&val, 8, 1, f);
   return (uint64_t)val;
 }
 
@@ -23,7 +23,11 @@ bool sample(FILE *f) {
   __float80 c = (__float80)read_point(f) / double64;
   __float80 d = (__float80)read_point(f) / double64;
   __float80 e = (__float80)read_point(f) / double64;
-  return (a*a + b*b + c*c + d*d + e*e) < (__float80)1.0;
+  __float80 k = (__float80)read_point(f) / double64;
+  __float80 g = (__float80)read_point(f) / double64;
+  __float80 h = (__float80)read_point(f) / double64;
+  __float80 j = (__float80)read_point(f) / double64;
+  return (a*a + b*b + c*c + d*d + e*e + k*k + g*g + h*h + j*j) < (__float80)1.0;
 }
 
 int main(int argc, char** argv)
@@ -37,10 +41,11 @@ int main(int argc, char** argv)
     if (sample(f))
       n++;
 
-    // Print only periodically (once per 2^20 iterations)
+    // exit after 2^20 iterations
     if ((i & 0x0fffff) == 0) {
-      __float80 pi = sqrt(60.0 * ((__float80)n / (__float80)i));
-      printf("After %10lu iterations: %.10Lf\n", i, (__float80)pi);
+      __float80 pi = sqrt(sqrt(15120.0 * ((__float80)n / (__float80)i)));
+      printf("%.17Lf\n", (__float80)pi);
+      return 0;
     }
   }
 }
