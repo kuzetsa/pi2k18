@@ -1,49 +1,99 @@
 // Compile with: gcc -lm
 
-#define big64 UINT64_MAX;
+// 0xFFFFFFFFFFFFFFFF is easily typo'd
+#define bigint64 UINT64_MAX;
 
 #include <math.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <stdbool.h>
 
-uint64_t read_point(FILE *f);
-bool sample(FILE *f);
+// return value for fread is ignored (trash it)
+uint64_t trash;
 
-uint64_t read_point(FILE *f) {
-  uint64_t val;
-  uint16_t trash = fread(&val, 8, 1, f);
-  return (uint64_t)val;
+// 64bit 9-dimensional hyperspace coordinates.
+typedef struct {
+  uint64_t p1;
+  uint64_t p2;
+  uint64_t p3;
+  uint64_t p4;
+  uint64_t p5;
+  uint64_t p6;
+  uint64_t p7;
+  uint64_t p8;
+  uint64_t p9;
+} hyperspot_int64;
+
+// extended precision (80bit) floating point coordinates
+typedef struct {
+  __float80 p1;
+  __float80 p2;
+  __float80 p3;
+  __float80 p4;
+  __float80 p5;
+  __float80 p6;
+  __float80 p7;
+  __float80 p8;
+  __float80 p9;
+} hyperspot_fp80;
+
+hyperspot_int64 read_hyperpoint(FILE *f);
+hyperspot_fp80 hyperfloatify(hyperspot_int64 hi64);
+__float80 measurehypersphere(FILE *f);
+
+hyperspot_int64 read_hyperpoint(FILE *f) {
+  hyperspot_int64 randomspot;
+  trash = fread(&randomspot, sizeof(hyperspot_int64), 1, f);
+  return (hyperspot_int64)randomspot;
 }
 
-bool sample(FILE *f) {
-  __float80 double64 = (__float80)1.0 * big64;
-  __float80 a = (__float80)read_point(f) / double64;
-  __float80 b = (__float80)read_point(f) / double64;
-  __float80 c = (__float80)read_point(f) / double64;
-  __float80 d = (__float80)read_point(f) / double64;
-  __float80 e = (__float80)read_point(f) / double64;
-  __float80 k = (__float80)read_point(f) / double64;
-  __float80 g = (__float80)read_point(f) / double64;
-  __float80 h = (__float80)read_point(f) / double64;
-  __float80 j = (__float80)read_point(f) / double64;
-  return (a*a + b*b + c*c + d*d + e*e + k*k + g*g + h*h + j*j) < (__float80)1.0;
+hyperspot_fp80 hyperfloatify(hyperspot_int64 hi64) {
+  // extended precision (80bit) floating point
+  const __float80 bigfloat80 = (__float80)1.0 * bigint64;
+  hyperspot_fp80 hf80;
+  hf80.p1 = hi64.p1 / bigfloat80;
+  hf80.p2 = hi64.p2 / bigfloat80;
+  hf80.p3 = hi64.p3 / bigfloat80;
+  hf80.p4 = hi64.p4 / bigfloat80;
+  hf80.p5 = hi64.p5 / bigfloat80;
+  hf80.p6 = hi64.p6 / bigfloat80;
+  hf80.p7 = hi64.p7 / bigfloat80;
+  hf80.p8 = hi64.p8 / bigfloat80;
+  hf80.p9 = hi64.p9 / bigfloat80;
+  return (hyperspot_fp80)hf80;
+}
+
+__float80 measurehypersphere(FILE *f) {
+  hyperspot_int64 checkit64 = (hyperspot_int64)read_hyperpoint(f);
+  hyperspot_fp80 checkit80 = (hyperspot_fp80)hyperfloatify(checkit64);
+  __float80 distance80 = (__float80)(
+    (checkit80.p1 * checkit80.p1) +
+    (checkit80.p2 * checkit80.p2) +
+    (checkit80.p3 * checkit80.p3) +
+    (checkit80.p4 * checkit80.p4) +
+    (checkit80.p5 * checkit80.p5) +
+    (checkit80.p6 * checkit80.p6) +
+    (checkit80.p7 * checkit80.p7) +
+    (checkit80.p8 * checkit80.p8) +
+    (checkit80.p9 * checkit80.p9)
+  );
+  return (__float80)distance80;
 }
 
 int main(int argc, char** argv)
 {
   FILE* f = fopen("/dev/urandom", "rb");
-
   uint64_t i=0, n=0;
-  while (true) {
+  while (2) { // any nonzero value is TRUE;
     i++;
-
-    if (sample(f))
+    if (measurehypersphere(f) < 1.0)
       n++;
-
-    // exit after 2^20 iterations
-    if ((i & 0x0fffff) == 0) {
-      __float80 pi = sqrt(sqrt(15120.0 * ((__float80)n / (__float80)i)));
+    // output after 2^18 iterations
+    if ((i & 0x03ffff) == 0) {
+      __float80 pi = pow(
+        (15120.0 * (
+            (__float80)n / (__float80)i
+          )
+        ), (1/4)); // 4th root
       printf("%.17Lf\n", (__float80)pi);
       return 0;
     }
