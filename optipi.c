@@ -1,100 +1,77 @@
-// Compile with: gcc -lm
-
-// 0xFFFFFFFFFFFFFFFF is easily typo'd
-#define bigint64 UINT64_MAX;
+/* Compiling with: gcc -lm
+  (might [not] be required) */
 
 #include <math.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 
-// return value for fread is ignored (trash it)
+// return values sometimes don't care (trash it)
 uint64_t trash;
 
-// 64bit 9-dimensional hyperspace coordinates.
+// pointer to help store results (THEN trash it)
+uint64_t *trashpointer = &trash;
+
+// 32bit 2-dimensional planar coordinates.
+typedef struct {
+  uint32_t p1;
+  uint32_t p2;
+} inputs_int32;
+
+// temporarily promote to 64bit (prevent overflows)
 typedef struct {
   uint64_t p1;
   uint64_t p2;
-  uint64_t p3;
-  uint64_t p4;
-  uint64_t p5;
-  uint64_t p6;
-  uint64_t p7;
-  uint64_t p8;
-  uint64_t p9;
-} hyperspot_int64;
+} outputs_int64;
 
-// extended precision (80bit) floating point coordinates
-typedef struct {
-  __float80 p1;
-  __float80 p2;
-  __float80 p3;
-  __float80 p4;
-  __float80 p5;
-  __float80 p6;
-  __float80 p7;
-  __float80 p8;
-  __float80 p9;
-} hyperspot_fp80;
+inputs_int32 read_point(FILE *f);
+outputs_int64 presanitizedmul(inputs_int32 unsafe32);
+bool testquartercircle(FILE *f);
 
-hyperspot_int64 read_hyperpoint(FILE *f);
-hyperspot_fp80 hyperfloatify(hyperspot_int64 hi64);
-__float80 measurehypersphere(FILE *f);
-
-hyperspot_int64 read_hyperpoint(FILE *f) {
-  hyperspot_int64 randomspot;
-  trash = fread(&randomspot, sizeof(hyperspot_int64), 1, f);
-  return (hyperspot_int64)randomspot;
+inputs_int32 read_point(FILE *f) {
+  inputs_int32 randomspot;
+  trash = fread(&randomspot, sizeof(inputs_int32), 1, f);
+  return (inputs_int32)randomspot;
 }
 
-hyperspot_fp80 hyperfloatify(hyperspot_int64 hi64) {
-  // extended precision (80bit) floating point
-  const __float80 bigfloat80 = (__float80)1.0 * bigint64;
-  hyperspot_fp80 hf80;
-  hf80.p1 = hi64.p1 / bigfloat80;
-  hf80.p2 = hi64.p2 / bigfloat80;
-  hf80.p3 = hi64.p3 / bigfloat80;
-  hf80.p4 = hi64.p4 / bigfloat80;
-  hf80.p5 = hi64.p5 / bigfloat80;
-  hf80.p6 = hi64.p6 / bigfloat80;
-  hf80.p7 = hi64.p7 / bigfloat80;
-  hf80.p8 = hi64.p8 / bigfloat80;
-  hf80.p9 = hi64.p9 / bigfloat80;
-  return (hyperspot_fp80)hf80;
+outputs_int64 presanitizedmul(inputs_int32 unsafe32) {
+  outputs_int64 san64;
+  san64.p1 = (uint64_t)unsafe32.p1 * (uint64_t)unsafe32.p1;
+  san64.p2 = (uint64_t)unsafe32.p2 * (uint64_t)unsafe32.p2;
+  return (outputs_int64)san64;
 }
 
-__float80 measurehypersphere(FILE *f) {
-  hyperspot_int64 checkit64 = (hyperspot_int64)read_hyperpoint(f);
-  hyperspot_fp80 checkit80 = (hyperspot_fp80)hyperfloatify(checkit64);
-  __float80 distance80 = (__float80)(
-    (checkit80.p1 * checkit80.p1) +
-    (checkit80.p2 * checkit80.p2) +
-    (checkit80.p3 * checkit80.p3) +
-    (checkit80.p4 * checkit80.p4) +
-    (checkit80.p5 * checkit80.p5) +
-    (checkit80.p6 * checkit80.p6) +
-    (checkit80.p7 * checkit80.p7) +
-    (checkit80.p8 * checkit80.p8) +
-    (checkit80.p9 * checkit80.p9)
-  );
-  return (__float80)distance80;
+bool testquartercircle(FILE *f) {
+  inputs_int32 checkit32 = (inputs_int32)read_point(f);
+  outputs_int64 checkit64 = (outputs_int64)presanitizedmul(checkit32);
+
+// gcc 7.x introduces a feature to check overflows.
+/*  bool returnbool = __builtin_add_overflow_p ((uint64_t)checkit64.p1,
+    (uint64_t)checkit64.p2, (uint64_t)0); */
+
+/* pre-gcc 7.x forces us handling the result...
+... assuming this algorithm needed to use it */
+  bool returnbool = __builtin_uaddl_overflow ((uint64_t)checkit64.p1,
+    (uint64_t)checkit64.p2, trashpointer); // literally trash the result.
+
+  return (bool)returnbool;
 }
 
 int main(int argc, char** argv)
 {
   FILE* f = fopen("/dev/urandom", "rb");
   uint64_t i=0, n=0;
-  while (2) { // any nonzero value is TRUE;
+
+  while (2) { // boolean would be fine.
     i++;
-    if (measurehypersphere(f) < 1.0)
+/* overflow = outside quarter circle:
+   reverse test using !(not) operator */
+    if (!testquartercircle(f))
       n++;
-    // output after 2^18 iterations
-    if ((i & 0x03ffff) == 0) {
-      __float80 pi = pow(
-        (15120.0 * (
-            (__float80)n / (__float80)i
-          )
-        ), (1/4)); // 4th root
-      printf("%.17Lf\n", (__float80)pi);
+// output after 2^21 iterations
+    if ((i & 0x1fffff) == 0) {
+      double micropi = ((double)4000000.0 * (double)n) / (double)i;
+      printf("%.6lf\n", (double)micropi);
       return 0;
     }
   }
