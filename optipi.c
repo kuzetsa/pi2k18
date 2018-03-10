@@ -46,13 +46,8 @@ bool testquartercircle(FILE *f) {
   outputs_int64 checkit64 = (outputs_int64)presanitizedmul(checkit32);
 
 // gcc 7.x introduces a feature to check overflows.
-/*  bool returnbool = __builtin_add_overflow_p ((uint64_t)checkit64.p1,
-    (uint64_t)checkit64.p2, (uint64_t)0); */
-
-/* pre-gcc 7.x forces us handling the result...
-... assuming this algorithm needed to use it */
-  bool returnbool = __builtin_uaddl_overflow ((uint64_t)checkit64.p1,
-    (uint64_t)checkit64.p2, trashpointer); // literally trash the result.
+bool returnbool = __builtin_add_overflow_p ((uint64_t)checkit64.p1,
+  (uint64_t)checkit64.p2, (uint64_t)0);
 
   return (bool)returnbool;
 }
@@ -68,10 +63,10 @@ int main(int argc, char** argv)
    reverse test using !(not) operator */
     if (!testquartercircle(f))
       n++;
-// output after 2^21 iterations
-    if ((i & 0x1fffff) == 0) {
+// output after 2^32 iterations
+    if ((i & 0xffffffff) == 0) {
       double micropi = ((double)4000000.0 * (double)n) / (double)i;
-      printf("%.6lf\n", (double)micropi);
+      printf("%.6lf (x1000000)\n", (double)micropi);
       return 0;
     }
   }
